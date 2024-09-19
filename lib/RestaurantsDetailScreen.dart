@@ -4,19 +4,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class RestaurantDetailScreen extends StatefulWidget {
   final String restaurantId;
 
-  const RestaurantDetailScreen({required this.restaurantId});
+  RestaurantDetailScreen({required this.restaurantId});
 
   @override
   _RestaurantDetailScreenState createState() => _RestaurantDetailScreenState();
 }
 
 class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
-  final _firestore = FirebaseFirestore.instance;
-  final _nameController = TextEditingController();
-  final _plzController = TextEditingController();
-  final _ratingController = TextEditingController();
-
-  bool isLoading = true;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final nameController = TextEditingController();
+  final plzController = TextEditingController();
+  final ratingController = TextEditingController();
 
   @override
   void initState() {
@@ -24,76 +22,37 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
     _loadRestaurantData();
   }
 
+  // Lädt die Daten des Restaurants
   void _loadRestaurantData() async {
-    try {
-      final doc = await _firestore
-          .collection('Restaurants')
-          .doc(widget.restaurantId)
-          .get();
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        _nameController.text = data['Name'] ?? '';
-        _plzController.text = data['PLZ'].toString();
-        _ratingController.text = data['Rating'].toString();
-      }
-    } catch (e) {
-      print("Error loading restaurant: $e");
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
-    }
-  }
+    DocumentSnapshot restaurantSnapshot = await _firestore
+        .collection('Restaurants')
+        .doc(widget.restaurantId)
+        .get();
 
-  void _saveRestaurant() async {
-    try {
-      await _firestore
-          .collection('Restaurants')
-          .doc(widget.restaurantId)
-          .update({
-        'Name': _nameController.text,
-        'PLZ': int.parse(_plzController.text),
-        'Rating': int.parse(_ratingController.text),
-      });
-      Navigator.of(context).pop();
-    } catch (e) {
-      print("Error updating restaurant: $e");
-    }
-  }
+    final restaurantData = restaurantSnapshot.data() as Map<String, dynamic>;
 
-  void _deleteRestaurant() async {
-    try {
-      await _firestore
-          .collection('Restaurants')
-          .doc(widget.restaurantId)
-          .delete();
-      Navigator.of(context).pop();
-    } catch (e) {
-      print("Error deleting restaurant: $e");
-    }
+    nameController.text = restaurantData['Name'];
+    plzController.text = restaurantData['PLZ'].toString();
+    ratingController.text = restaurantData['Rating'].toString();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Restaurant Details'),
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Restaurant Details'),
+        title: Text("Restaurant Details"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete),
+            icon: Icon(Icons.delete),
             onPressed: () {
-              _deleteRestaurant();
+              // Löscht das Restaurant
+              _firestore
+                  .collection('Restaurants')
+                  .doc(widget.restaurantId)
+                  .delete();
+              Navigator.of(context).pop();
             },
-          ),
+          )
         ],
       ),
       body: Padding(
@@ -101,23 +60,34 @@ class _RestaurantDetailScreenState extends State<RestaurantDetailScreen> {
         child: Column(
           children: [
             TextField(
-              controller: _nameController,
+              controller: nameController,
               decoration: const InputDecoration(labelText: 'Name'),
             ),
             TextField(
-              controller: _plzController,
-              decoration: const InputDecoration(labelText: 'PLZ'),
+              controller: plzController,
+              decoration: InputDecoration(labelText: 'PLZ'),
               keyboardType: TextInputType.number,
             ),
             TextField(
-              controller: _ratingController,
-              decoration: const InputDecoration(labelText: 'Rating'),
+              controller: ratingController,
+              decoration: InputDecoration(labelText: 'Rating'),
               keyboardType: TextInputType.number,
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: _saveRestaurant,
-              child: const Text('Speichern'),
+              onPressed: () {
+                // Speichert die Änderungen des Restaurants
+                _firestore
+                    .collection('Restaurants')
+                    .doc(widget.restaurantId)
+                    .update({
+                  'Name': nameController.text,
+                  'PLZ': int.parse(plzController.text),
+                  'Rating': int.parse(ratingController.text),
+                });
+                Navigator.of(context).pop();
+              },
+              child: Text('Speichern'),
             ),
           ],
         ),
